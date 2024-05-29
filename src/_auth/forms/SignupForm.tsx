@@ -1,23 +1,26 @@
-import * as z from "zod";
-import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Loader from "@/components/shared/Loader";
-import { useToast } from "@/components/ui/use-toast";
-
-import { useCreateUserAccount, useSignInAccount } from "@/lib/react-query/queries";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { SignupValidation } from "@/lib/validation";
-import { useUserContext } from "@/context/AuthContext";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
+import { createUserAccount } from "@/lib/appwrite/api";
 
 const SignupForm = () => {
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const { checkAuthUser, isLoading: isUserLoading } = useUserContext();
 
+  const isLoading = false;
+  // 1. Define your form.
   const form = useForm<z.infer<typeof SignupValidation>>({
     resolver: zodResolver(SignupValidation),
     defaultValues: {
@@ -28,55 +31,17 @@ const SignupForm = () => {
     },
   });
 
-  // Queries
-  const { mutateAsync: createUserAccount, isLoading: isCreatingAccount } = useCreateUserAccount();
-  const { mutateAsync: signInAccount, isLoading: isSigningInUser } = useSignInAccount();
-
-  // Handler
-  const handleSignup = async (user: z.infer<typeof SignupValidation>) => {
-    try {
-      const newUser = await createUserAccount(user);
-
-      if (!newUser) {
-        toast({ title: "Sign up failed. Please try again.", });
-        
-        return;
-      }
-
-      const session = await signInAccount({
-        email: user.email,
-        password: user.password,
-      });
-
-      if (!session) {
-        toast({ title: "Something went wrong. Please login your new account", });
-        
-        navigate("/sign-in");
-        
-        return;
-      }
-
-      const isLoggedIn = await checkAuthUser();
-
-      if (isLoggedIn) {
-        form.reset();
-
-        navigate("/");
-      } else {
-        toast({ title: "Login failed. Please try again.", });
-        
-        return;
-      }
-    } catch (error) {
-      console.log({ error });
-    }
-  };
+  // 2. Define a submit handler.
+  async function onSubmit(values: z.infer<typeof SignupValidation>) {
+    //Create user
+    const newUser = await createUserAccount(values);
+    console.log(newUser);
+  }
 
   return (
     <Form {...form}>
       <div className="sm:w-420 flex-center flex-col">
         <img src="/assets/images/logo.svg" alt="logo" />
-
         <h2 className="h3-bold md:h2-bold pt-5 sm:pt-12">
           Create a new account
         </h2>
@@ -85,8 +50,9 @@ const SignupForm = () => {
         </p>
 
         <form
-          onSubmit={form.handleSubmit(handleSignup)}
-          className="flex flex-col gap-5 w-full mt-4">
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-5 w-full mt-4"
+        >
           <FormField
             control={form.control}
             name="name"
@@ -100,8 +66,7 @@ const SignupForm = () => {
               </FormItem>
             )}
           />
-
-          <FormField
+                    <FormField
             control={form.control}
             name="username"
             render={({ field }) => (
@@ -144,15 +109,12 @@ const SignupForm = () => {
           />
 
           <Button type="submit" className="shad-button_primary">
-            {isCreatingAccount || isSigningInUser || isUserLoading ? (
+            { isLoading ? (
               <div className="flex-center gap-2">
                 <Loader /> Loading...
               </div>
-            ) : (
-              "Sign Up"
-            )}
+            ): "Sign Up"}
           </Button>
-
           <p className="text-small-regular text-light-2 text-center mt-2">
             Already have an account?
             <Link
